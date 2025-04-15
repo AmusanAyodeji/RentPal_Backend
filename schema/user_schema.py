@@ -8,4 +8,7 @@ class User(BaseModel):
     subscribed: bool = False
 
 class UserCreate(User):
-    hashed_password: str
+    password: str
+
+class UserDisplay(UserCreate):
+    id: str

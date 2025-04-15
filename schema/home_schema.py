@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 
 
-class Building(BaseModel):
+class BuildingCreate(BaseModel):
     description: str
     address: str
     bedroom_no: str
@@ -15,5 +15,8 @@ class Building(BaseModel):
     payment_frequency: int
     property_type: str
 
-class BuildingCreate(Building):
-    id: int
+class Building(BuildingCreate):
+    id: str
+
+class BuildingDisplay(BuildingCreate):
+    pass
