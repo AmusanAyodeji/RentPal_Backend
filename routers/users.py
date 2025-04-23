@@ -33,7 +33,7 @@ def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
 def read_users_me(current_user: Annotated[User, Depends(get_current_user)]):
     return current_user
 
-@usersrouter.post("/auth/signup/")
+@usersrouter.post("/auth/signup")
 def register_user(user_data:UserCreate):
     user_crud.register_user(user_data)
 
