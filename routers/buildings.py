@@ -8,17 +8,17 @@ from services.buildings import building_crud
 buildingrouter = APIRouter()
 
 
-@buildingrouter.post("/post_building/")
+@buildingrouter.post("/post")
 def post_a_building(building_data:BuildingCreate, current_user: Annotated[User, Depends(get_current_user)]):
     return building_crud.building_create(building_data, current_user)
     
 
-@buildingrouter.get("/buildings/")
+@buildingrouter.get("/")
 def show_buildings():
     return building_crud.show_buildings()
 
 
-@buildingrouter.post("/buildings/save")
+@buildingrouter.post("/save/{id}")
 def save_a_building(id:str, current_user: Annotated[User, Depends(get_current_user)]):
     return building_crud.save_a_building(id, current_user)
 
