@@ -38,6 +38,6 @@ def register_user(user_data:UserCreate):
     user_crud.register_user(user_data)
 
 
-@usersrouter.patch("/reset_password/")
+@usersrouter.patch("/reset_password")
 def reset_password(email:str, updated_password:str, confirm_password: str):
     user_crud.reset_password(email,updated_password,confirm_password)
