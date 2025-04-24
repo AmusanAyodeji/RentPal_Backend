@@ -7,6 +7,7 @@ from schema.user_schema import UserCreate
 
 class UserService:
 
+    @staticmethod
     def register_user(user_data:UserCreate):
         #look into how to log in with gmail account and x account
         user = get_user(user_data.email)
@@ -26,7 +27,7 @@ class UserService:
 
         raise HTTPException(status_code=200, detail={"Message":"User Successfully Created"})
 
-
+    @staticmethod
     def reset_password(email:str, updated_password:str, confirm_password: str):
         cursor.execute("SELECT * FROM Users WHERE email = %s",(email,))
         user = cursor.fetchone()
