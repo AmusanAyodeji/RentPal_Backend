@@ -7,7 +7,7 @@ class BuildingService:
 
     @staticmethod
     def building_create(building_data:BuildingCreate, current_user: User):
-        if current_user.account_type not in ["Landlord", "Agent"]:
+        if current_user.account_type.value not in ["Landlord", "Agent"]:
             raise HTTPException(status_code=401, detail="Message: Only LandLords Can Post Houses")
         try:
             cursor.execute("INSERT INTO Buildings(description,address,bedroom_no,bathroom_no,furnished,available_facilities,interior_features,exterior_features,purpose,price,payment_frequency,property_type) VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",(building_data.description,building_data.address,building_data.bedroom_no,building_data.bathroom_no,building_data.furnished,building_data.available_facilities,building_data.interior_features,building_data.exterior_features,building_data.purpose,building_data.price,building_data.payment_frequency,building_data.property_type))
@@ -46,7 +46,7 @@ class BuildingService:
 
     @staticmethod
     def save_a_building(id:str, current_user: User):
-        if current_user.account_type != "User":
+        if current_user.account_type.value != "User":
             raise HTTPException(status_code=401, detail="Message: Only Users can Save Buildings")
 
         cursor.execute("SELECT * FROM buildings WHERE id = %s",(id,))
@@ -71,7 +71,7 @@ class BuildingService:
 
     @staticmethod
     def list_saved_buildings(current_user: User):
-        if current_user.account_type != "User":
+        if current_user.account_type.value != "User":
             raise HTTPException(status_code=401, detail="Message: Only Users can View Saved Buildings")
 
         cursor.execute("SELECT b.* FROM Buildings b JOIN saved_buildings sb ON b.id = sb.building_id WHERE sb.user_email = %s", (current_user.email,))
