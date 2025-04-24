@@ -13,7 +13,7 @@ class BuildingService:
             cursor.execute("INSERT INTO Buildings(description,address,bedroom_no,bathroom_no,furnished,available_facilities,interior_features,exterior_features,purpose,price,payment_frequency,property_type) VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",(building_data.description,building_data.address,building_data.bedroom_no,building_data.bathroom_no,building_data.furnished,building_data.available_facilities,building_data.interior_features,building_data.exterior_features,building_data.purpose,building_data.price,building_data.payment_frequency,building_data.property_type))
             connection.commit()
         except Exception as e:
-            raise HTTPException(status_code=400, detail="Unable to add building to DB"+e)
+            raise HTTPException(status_code=400, detail="Unable to add building to DB"+ str(e))
 
         return f"Building with Description: {building_data.description} had been created"
 
@@ -65,7 +65,7 @@ class BuildingService:
             cursor.execute("INSERT INTO saved_buildings(user_email,building_id) VALUES(%s, %s)",(current_user.email,id))
             connection.commit()
         except Exception as e:
-            raise HTTPException(status_code=400,detail="Unable to add to DB: "+e)
+            raise HTTPException(status_code=400,detail="Unable to add to DB: "+ str(e))
 
         return "Building Successfully saved"
 

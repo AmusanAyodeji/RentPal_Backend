@@ -46,7 +46,7 @@ class UserService:
             cursor.execute("UPDATE Users SET hashed_password = %s WHERE email = %s",(hash_password(updated_password),email))
             connection.commit()
         except Exception as e:
-            raise HTTPException(status_code=400, detail="Unable to change password: "+e)
+            raise HTTPException(status_code=400, detail="Unable to change password: "+ str(e))
 
         raise HTTPException(status_code=200, detail="Password Successfully Updated")
 
