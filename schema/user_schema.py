@@ -1,10 +1,19 @@
 from pydantic import BaseModel, EmailStr
+from enum import Enum
+from typing import Union
 
-class User(BaseModel):
+class AccountType(str, Enum):
+    user = "User"
+    landLord = "LandLord"
+    agent = "Agent"
+
+class AccountBase(BaseModel):
+    account_type: AccountType
+
+class User(AccountBase):
     full_name: str
     email: EmailStr
     phone_number: str
-    account_type: str
     subscribed: bool = False
 
 class UserCreate(User):
