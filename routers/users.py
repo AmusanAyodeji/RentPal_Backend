@@ -14,22 +14,6 @@ from schema.login_schema import LoginPayload
 usersrouter = APIRouter()
 
 
-# @usersrouter.post("/auth/login", response_model=Token)
-# def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
-#         cursor.execute("SELECT * FROM Users WHERE email = %s", (form_data.username,))
-#         db_user = cursor.fetchone()
-#         if not db_user:
-#             raise HTTPException(status_code=400, detail="Incorrect username or password")
-
-#         if not pwd_context.verify(form_data.password,db_user[6]):
-#             raise HTTPException(status_code=400, detail="Incorrect username or password")
-
-#         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-#         access_token = create_access_token(
-#             data={"sub": form_data.username}, expires_delta=access_token_expires
-#         )
-#         return Token(access_token=access_token, token_type="bearer")
-
 
 @usersrouter.post("/auth/token", response_model=Token)
 def login_oauth(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):

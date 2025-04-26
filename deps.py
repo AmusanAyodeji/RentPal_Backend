@@ -9,7 +9,9 @@ from fastapi import Depends, HTTPException, status
 from typing import Annotated
 from jwt.exceptions import InvalidTokenError
 from schema.token_schema import TokenData
+from dotenv import load_dotenv
 
+load_dotenv()
 
 
 SECRET_KEY = os.getenv("SECRET_KEY")

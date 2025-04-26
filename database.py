@@ -1,5 +1,8 @@
 import os
 import psycopg2
+from dotenv import load_dotenv
+
+load_dotenv()
 
 USER = os.getenv("user")
 PASSWORD = os.getenv("password")
