@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Choose Account Type</title>
+</head>
+<body>
+  <h1>Login with Google</h1>
+
+  <button onclick="googleLogin('User')">Login as User</button>
+  <button onclick="googleLogin('Landlord')">Login as Landlord</button>
+  <button onclick="googleLogin('Agent')">Login as Agent</button>
+
+  <script>
+    function googleLogin(accountType) {
+      const backendUrl = 'http://localhost:8000/auth/login';
+      window.location.href = `${backendUrl}?account_type=${accountType}`;
+    }
+  </script>
+</body>
+</html>

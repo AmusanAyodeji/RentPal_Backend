@@ -4,7 +4,7 @@ from fastapi.responses import RedirectResponse, JSONResponse
 from google_auth_oauthlib.flow import Flow
 from typing import Annotated
 from schema.token_schema import Token
-from schema.user_schema import User, UserCreate
+from schema.user_schema import User, UserCreate, AccountType
 from deps import get_current_user
 from fastapi.security import OAuth2PasswordRequestForm
 from services.users import user_crud
@@ -26,19 +26,29 @@ SCOPES = [
     "https://www.googleapis.com/auth/user.phonenumbers.read"
 ]
 
-flow = Flow.from_client_secrets_file(
-    "credentials.json",
-    scopes=SCOPES,
-    redirect_uri="http://localhost:8000/auth/callback"
-)
 
 @usersrouter.get("/auth/login")
-def google_login():
-    authorization_url, state = flow.authorization_url()
+def google_login(account_type:AccountType):
+    flow = Flow.from_client_secrets_file(
+        "credentials.json",
+        scopes=SCOPES,
+        redirect_uri="http://localhost:8000/auth/callback"
+    )
+
+    authorization_url, state = flow.authorization_url(state=account_type)
     return RedirectResponse(authorization_url)
+
 
 @usersrouter.get("/auth/callback")
 def google_login_auth_callback(request: Request):
+
+    flow = Flow.from_client_secrets_file(
+        "credentials.json",
+        scopes=SCOPES,
+        redirect_uri="http://localhost:8000/auth/callback"
+    )
+
+    account_type = request.query_params.get('state')
 
     flow.fetch_token(authorization_response=str(request.url))
     credentials = flow.credentials
@@ -47,29 +57,28 @@ def google_login_auth_callback(request: Request):
     user_info = session.get("https://www.googleapis.com/userinfo/v2/me").json()
     people_info = session.get("https://people.googleapis.com/v1/people/me?personFields=phoneNumbers").json()
 
-    cursor.execute("SELECT * FROM users WHERE email = %s",(user_info["email"],))
+    cursor.execute("SELECT * FROM users WHERE email = %s", (user_info["email"],))
     result = cursor.fetchone()
+
     if not result:
         phone_numbers = people_info.get("phoneNumbers", [])
         phone_number = None
         if phone_numbers:
             phone_number = phone_numbers[0].get("value")
             phone_number = phone_number[:0] + "0" + phone_number[0:]
+
+        # else:
+        #     return RedirectResponse(f"/add-phone-number?email={user_info["email"]}")
         
-        cursor.execute("INSERT INTO users(full_name,email,phone_number,subscribed) VALUES(%s,%s,%s,%s)",(user_info["name"],user_info["email"],phone_number,True))
+        cursor.execute("INSERT INTO users(full_name,email,phone_number,subscribed,account_type) VALUES(%s,%s,%s,%s,%s)",(user_info["name"],user_info["email"],phone_number,True,account_type))
         connection.commit()
 
-    #add some logic for users to input their phone numbers if it is none
+        access_token = create_access_token(data={"sub": user_info["email"]})
+        return JSONResponse({
+            "access_token": access_token,
+            "token_type": "bearer"
+        })
 
-    access_token = create_access_token(data={"sub": user_info["id"]})
-
-    return JSONResponse({
-        "access_token": access_token,
-        "token_type": "bearer"
-    })
-
-
-#------------------------------------------------------------------------------------------
 
 
 @usersrouter.post("/auth/token", response_model=Token)

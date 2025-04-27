@@ -3,7 +3,7 @@ from enum import Enum
 
 class AccountType(str, Enum):
     user = "User"
-    landLord = "LandLord"
+    landlord = "Landlord"
     agent = "Agent"
 
 class AccountBase(BaseModel):
