@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Choose Login Method</title>
+</head>
+<body>
+  <h1>Choose Login Method</h1>
+
+  <p id="accountTypeMessage">You have selected: </p>
+
+  <form id="loginMethodForm">
+    <button type="button" onclick="googleLogin()">Login with Google</button>
+    <button type="button" onclick="otherLoginMethod()">Other Login Method</button>
+  </form>
+
+  <script>
+    // Get the account type from sessionStorage
+    const accountType = sessionStorage.getItem("account_type");
+    
+    // Check if accountType is set, and update the message
+    if (accountType) {
+      document.getElementById('accountTypeMessage').textContent = "You have selected: " + accountType;
+    } else {
+      document.getElementById('accountTypeMessage').textContent = "Account type not selected.";
+    }
+
+    function googleLogin() {
+      // Ensure that accountType is available before proceeding
+      if (!accountType) {
+        alert("Please select an account type before proceeding.");
+        return;
+      }
+
+      // Redirect to Google login with the selected account type
+      window.location.href = "http://127.0.0.1:8000/auth/login?account_type=" + accountType;
+    }
+
+    function otherLoginMethod() {
+      // Add logic for other login methods (e.g., email/password)
+      alert("Other login methods not implemented yet.");
+    }
+  </script>
+</body>
+</html>

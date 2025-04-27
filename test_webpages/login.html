@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Choose Account Type</title>
+</head>
+<body>
+  <h1>Login</h1>
+
+  <h2>Choose Your Account Type</h2>
+  <form id="accountTypeForm">
+    <button type="button" onclick="chooseAccountType('User')">Login as User</button>
+    <button type="button" onclick="chooseAccountType('Landlord')">Login as Landlord</button>
+    <button type="button" onclick="chooseAccountType('Agent')">Login as Agent</button>
+  </form>
+
+  <script>
+    function chooseAccountType(accountType) {
+      // Store the account type in sessionStorage
+      sessionStorage.setItem("account_type", accountType);
+      
+      // Redirect to the Choose Login Method page
+      window.location.href = "choose_login_method.html";
+    }
+  </script>
+</body>
+</html>

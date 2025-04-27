@@ -1,6 +1,6 @@
 import os
-from fastapi import APIRouter, HTTPException, Depends, Request
-from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi import APIRouter, HTTPException, Depends, Request, Form
+from fastapi.responses import RedirectResponse, JSONResponse, HTMLResponse
 from google_auth_oauthlib.flow import Flow
 from typing import Annotated
 from schema.token_schema import Token
@@ -12,7 +12,6 @@ from database import cursor, connection
 from datetime import timedelta
 from deps import create_access_token, pwd_context, ACCESS_TOKEN_EXPIRE_MINUTES
 from schema.login_schema import LoginPayload
-
 
 usersrouter = APIRouter()
 
@@ -35,13 +34,11 @@ def google_login(account_type:AccountType):
         redirect_uri="http://localhost:8000/auth/callback"
     )
 
-    authorization_url, state = flow.authorization_url(state=account_type)
+    authorization_url, state = flow.authorization_url(state=account_type.value)
     return RedirectResponse(authorization_url)
-
 
 @usersrouter.get("/auth/callback")
 def google_login_auth_callback(request: Request):
-
     flow = Flow.from_client_secrets_file(
         "credentials.json",
         scopes=SCOPES,
@@ -57,28 +54,53 @@ def google_login_auth_callback(request: Request):
     user_info = session.get("https://www.googleapis.com/userinfo/v2/me").json()
     people_info = session.get("https://people.googleapis.com/v1/people/me?personFields=phoneNumbers").json()
 
-    cursor.execute("SELECT * FROM users WHERE email = %s", (user_info["email"],))
-    result = cursor.fetchone()
-
-    if not result:
-        phone_numbers = people_info.get("phoneNumbers", [])
-        phone_number = None
-        if phone_numbers:
-            phone_number = phone_numbers[0].get("value")
-            phone_number = phone_number[:0] + "0" + phone_number[0:]
-
-        # else:
-        #     return RedirectResponse(f"/add-phone-number?email={user_info["email"]}")
-        
-        cursor.execute("INSERT INTO users(full_name,email,phone_number,subscribed,account_type) VALUES(%s,%s,%s,%s,%s)",(user_info["name"],user_info["email"],phone_number,True,account_type))
-        connection.commit()
-
+    if not account_type:
         access_token = create_access_token(data={"sub": user_info["email"]})
         return JSONResponse({
             "access_token": access_token,
             "token_type": "bearer"
         })
 
+    cursor.execute("SELECT * FROM Users WHERE email = %s",(user_info["email"],))
+    result = cursor.fetchone()
+
+    if result:
+        access_token = create_access_token(data={"sub": user_info["email"]})
+        return JSONResponse({
+            "access_token": access_token,
+            "token_type": "bearer"
+        })
+    else:
+        phone_numbers = people_info.get("phoneNumbers", [])
+        phone_number = None
+        if phone_numbers:
+            phone_number = phone_numbers[0].get("value")
+            phone_number = phone_number[:0] + "0" + phone_number[0:]
+            cursor.execute("INSERT INTO users(full_name, email, phone_number, subscribed, account_type) VALUES(%s, %s, %s, %s, %s);",
+                (user_info["name"], user_info["email"], phone_number, True, account_type))
+            connection.commit()
+
+        if not phone_number:
+            request.session['email'] = user_info["email"]
+            cursor.execute("INSERT INTO users(full_name, email, subscribed, account_type) VALUES(%s, %s, %s, %s);",
+                (user_info["name"], user_info["email"], True, account_type))
+            connection.commit()
+            return RedirectResponse(f"/test_webpages/add-phone-number.html?email={user_info['email']}&account_type={account_type}")
+
+
+
+@usersrouter.post("/submit-phone-number")
+async def submit_phone_number(request: Request, phone_number: str = Form(...)):
+    request.session['phone_number'] = phone_number
+
+    email = request.session['email']
+
+    cursor.execute("UPDATE Users SET phone_number = %s WHERE email = %s;",(phone_number, email))
+    connection.commit()
+
+    access_token = create_access_token(data={"sub": email})
+
+    return JSONResponse({"access_token": access_token,"token_type": "bearer"})
 
 
 @usersrouter.post("/auth/token", response_model=Token)
