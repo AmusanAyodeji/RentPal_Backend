@@ -16,7 +16,10 @@ class UserService:
 
         if len(user_data.phone_number) != 11:
             raise HTTPException(status_code=400, detail="Invalid Phone Number")
-
+        
+        if not user_data.password:
+            raise HTTPException(status_code=400, detail="Invalid Password")
+        
         try:
             cursor.execute("INSERT INTO Users(full_name,email,phone_number,account_type,subscribed,hashed_password) VALUES(%s, %s, %s, %s, %s, %s);",(user_data.full_name,user_data.email,user_data.phone_number,user_data.account_type.value,user_data.subscribed,hash_password(user_data.password)))
             connection.commit()

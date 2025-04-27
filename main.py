@@ -7,7 +7,7 @@ app = FastAPI()
 
 origins = [
     "http://localhost:3000",
-    "https://rent-pal.vercel.app/",
+    "https://rent-pal.vercel.app/"
 ]
 
 app.include_router(usersrouter,tags=["users"])
