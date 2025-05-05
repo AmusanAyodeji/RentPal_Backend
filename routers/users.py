@@ -49,7 +49,6 @@ def google_login():
     authorization_url, state = flow.authorization_url()
     return RedirectResponse(authorization_url)
 
-
 @usersrouter.get("/auth/callback")
 def google_signup_or_signin_auth_callback(request: Request):
     flow = Flow.from_client_secrets_file(
@@ -93,20 +92,18 @@ def google_signup_or_signin_auth_callback(request: Request):
         "token_type": "bearer"
     })
 
+# @usersrouter.post("/submit-phone-number")
+# async def submit_phone_number(request: Request, phone_number: str = Form(...)):
+#     request.session['phone_number'] = phone_number
 
-@usersrouter.post("/submit-phone-number")
-async def submit_phone_number(request: Request, phone_number: str = Form(...)):
-    request.session['phone_number'] = phone_number
+#     email = request.session['email']
 
-    email = request.session['email']
+#     cursor.execute("UPDATE Users SET phone_number = %s WHERE email = %s;",(phone_number, email))
+#     connection.commit()
 
-    cursor.execute("UPDATE Users SET phone_number = %s WHERE email = %s;",(phone_number, email))
-    connection.commit()
+#     access_token = create_access_token(data={"sub": email})
 
-    access_token = create_access_token(data={"sub": email})
-
-    return JSONResponse({"access_token": access_token,"token_type": "bearer"})
-
+#     return JSONResponse({"access_token": access_token,"token_type": "bearer"})
 
 @usersrouter.post("/auth/token", response_model=Token)
 def login_authorize_button(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
@@ -122,7 +119,6 @@ def login_authorize_button(form_data: Annotated[OAuth2PasswordRequestForm, Depen
     )
     return Token(access_token=access_token, token_type="bearer")
 
-
 @usersrouter.post("/auth/login", response_model=Token)
 def login(payload: LoginPayload):
     cursor.execute("SELECT * FROM Users WHERE email = %s", (payload.username,))
@@ -136,7 +132,6 @@ def login(payload: LoginPayload):
         data={"sub": payload.username}, expires_delta=access_token_expires
     )
     return Token(access_token=access_token, token_type="bearer")
-
 
 @usersrouter.get("/users/me")
 def read_users_me(current_user: Annotated[User, Depends(get_current_user)]):
