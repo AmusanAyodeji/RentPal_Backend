@@ -50,7 +50,7 @@ def google_login():
 
 
 @usersrouter.get("/auth/callback")
-def google_signup_auth_callback(request: Request):
+def google_signup_or_signin_auth_callback(request: Request):
     flow = Flow.from_client_secrets_file(
         "credentials.json",
         scopes=SCOPES,
@@ -154,10 +154,6 @@ def register_user(user_data:UserCreate):
 @usersrouter.patch("/reset_password")
 def reset_password(email:str, updated_password:str, confirm_password: str):
     user_crud.reset_password(email,updated_password,confirm_password)
-
-@usersrouter.post("/login/otp")
-async def initiate_otp_login(login: LoginRequest):
-    return user_crud.login_with_otp(login.email)
 
 @usersrouter.post("/verify-otp")
 async def verify_otp(request: OTPVerifyRequest):

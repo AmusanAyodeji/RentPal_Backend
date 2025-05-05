@@ -131,20 +131,6 @@ class UserService:
         return {"message": "User successfully created. Please verify your email with the OTP sent."}
 
     @staticmethod
-    def login_with_otp(email: str):
-        """Initiate OTP-based login by sending an OTP to the user's email."""
-        user = get_user(email)
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-
-        # Generate and send OTP
-        otp = UserService.generate_otp()
-        UserService.store_otp(email, otp)
-        UserService.send_otp_email(email, otp)
-
-        return {"message": "OTP sent to your email. Please verify to log in."}
-
-    @staticmethod
     def reset_password(email:str, updated_password:str, confirm_password: str):
         cursor.execute("SELECT * FROM Users WHERE email = %s",(email,))
         user = cursor.fetchone()
