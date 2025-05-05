@@ -4,7 +4,7 @@ from fastapi.responses import RedirectResponse, JSONResponse, HTMLResponse
 from google_auth_oauthlib.flow import Flow
 from typing import Annotated
 from schema.token_schema import Token
-from schema.user_schema import User, UserCreate, AccountType
+from schema.user_schema import User, UserCreate, AccountType, OTPVerifyRequest, LoginRequest
 from deps import get_current_user
 from fastapi.security import OAuth2PasswordRequestForm
 from services.users import user_crud
@@ -26,23 +26,23 @@ SCOPES = [
 ]
 
 
-@usersrouter.get("/auth/login")
-def google_login(account_type:AccountType):
+@usersrouter.get("/auth/signup")
+def google_signup(account_type:AccountType):
     flow = Flow.from_client_secrets_file(
         "credentials.json",
         scopes=SCOPES,
-        redirect_uri="http://localhost:8000/auth/callback"
+        redirect_uri="http://localhost:8000/auth/signupcallback"
     )
 
     authorization_url, state = flow.authorization_url(state=account_type.value)
     return RedirectResponse(authorization_url)
 
-@usersrouter.get("/auth/callback")
-def google_login_auth_callback(request: Request):
+@usersrouter.get("/auth/signupcallback")
+def google_signup_auth_callback(request: Request):
     flow = Flow.from_client_secrets_file(
         "credentials.json",
         scopes=SCOPES,
-        redirect_uri="http://localhost:8000/auth/callback"
+        redirect_uri="http://localhost:8000/auth/signupcallback"
     )
 
     account_type = request.query_params.get('state')
@@ -54,12 +54,6 @@ def google_login_auth_callback(request: Request):
     user_info = session.get("https://www.googleapis.com/userinfo/v2/me").json()
     people_info = session.get("https://people.googleapis.com/v1/people/me?personFields=phoneNumbers").json()
 
-    if not account_type:
-        access_token = create_access_token(data={"sub": user_info["email"]})
-        return JSONResponse({
-            "access_token": access_token,
-            "token_type": "bearer"
-        })
 
     cursor.execute("SELECT * FROM Users WHERE email = %s",(user_info["email"],))
     result = cursor.fetchone()
@@ -79,6 +73,11 @@ def google_login_auth_callback(request: Request):
             cursor.execute("INSERT INTO users(full_name, email, phone_number, subscribed, account_type) VALUES(%s, %s, %s, %s, %s);",
                 (user_info["name"], user_info["email"], phone_number, True, account_type))
             connection.commit()
+            access_token = create_access_token(data={"sub": user_info["email"]})
+            return JSONResponse({
+                "access_token": access_token,
+                "token_type": "bearer"
+            })
 
         if not phone_number:
             request.session['email'] = user_info["email"]
@@ -87,7 +86,37 @@ def google_login_auth_callback(request: Request):
             connection.commit()
             return RedirectResponse(f"/test_webpages/add-phone-number.html?email={user_info['email']}&account_type={account_type}")
 
+@usersrouter.get("/auth/signin")
+def google_login():
+    flow = Flow.from_client_secrets_file(
+        "credentials.json",
+        scopes=SCOPES,
+        redirect_uri="http://localhost:8000/auth/signincallback"
+    )
 
+    authorization_url, state = flow.authorization_url()
+    return RedirectResponse(authorization_url)
+
+@usersrouter.get("/auth/signincallback")
+def google_login_auth_callback(request: Request):
+    flow = Flow.from_client_secrets_file(
+        "credentials.json",
+        scopes=SCOPES,
+        redirect_uri="http://localhost:8000/auth/signincallback"
+    )
+
+    flow.fetch_token(authorization_response=str(request.url))
+    credentials = flow.credentials
+
+    session = flow.authorized_session()
+    user_info = session.get("https://www.googleapis.com/userinfo/v2/me").json()
+
+    access_token = create_access_token(data={"sub": user_info["email"]})
+
+    return JSONResponse({
+        "access_token": access_token,
+        "token_type": "bearer"
+    })
 
 @usersrouter.post("/submit-phone-number")
 async def submit_phone_number(request: Request, phone_number: str = Form(...)):
@@ -144,3 +173,12 @@ def register_user(user_data:UserCreate):
 @usersrouter.patch("/reset_password")
 def reset_password(email:str, updated_password:str, confirm_password: str):
     user_crud.reset_password(email,updated_password,confirm_password)
+
+@usersrouter.post("/login/otp")
+async def initiate_otp_login(login: LoginRequest):
+    return user_crud.login_with_otp(login.email)
+
+@usersrouter.post("/verify-otp")
+async def verify_otp(request: OTPVerifyRequest):
+    user_crud.verify_otp(request.email, request.otp)
+    return {"message": "OTP verified successfully. You are now logged in."}

@@ -2,33 +2,147 @@ from database import cursor, connection
 from fastapi import HTTPException
 from deps import pwd_context, get_user, hash_password
 from schema.user_schema import UserCreate
-
-
+import random
+import string
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from datetime import datetime, timedelta
+import os
 
 class UserService:
+    @staticmethod
+    def generate_otp(length=6):
+        """Generate a random OTP of specified length."""
+        return ''.join(random.choices(string.digits, k=length))
 
     @staticmethod
-    def register_user(user_data:UserCreate):
-        #look into how to log in with gmail account and x account
+    def send_otp_email(email: str, otp: str):
+        """Send OTP to the user's email using Gmail SMTP."""
+        sender_email = os.getenv("SMTP_EMAIL")  # e.g., your.email@gmail.com
+        sender_password = os.getenv("SMTP_PASSWORD")  # Gmail app-specific password
+        subject = "Your OTP for Verification"
+        body = f"Your One-Time Password (OTP) is: {otp}\nIt is valid for 5 minutes."
+
+        msg = MIMEMultipart()
+        msg['From'] = sender_email
+        msg['To'] = email
+        msg['Subject'] = subject
+        msg.attach(MIMEText(body, 'plain'))
+
+        try:
+            server = smtplib.SMTP('smtp.gmail.com', 587)
+            server.starttls()
+            server.login(sender_email, sender_password)
+            server.sendmail(sender_email, email, msg.as_string())
+            server.quit()
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to send OTP: {str(e)}")
+
+    @staticmethod
+    def store_otp(email: str, otp: str):
+        """Store OTP in the database with a 5-minute expiration."""
+        expires_at = datetime.utcnow() + timedelta(minutes=5)
+        try:
+            cursor.execute(
+                """
+                INSERT INTO OTPs (email, otp, created_at, expires_at, is_used)
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                (email, otp, datetime.utcnow(), expires_at, False)
+            )
+            connection.commit()
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Failed to store OTP: {str(e)}")
+
+    @staticmethod
+    def verify_otp(email: str, otp: str):
+        """Verify the OTP provided by the user."""
+        try:
+            cursor.execute(
+                """
+                SELECT otp, expires_at, is_used
+                FROM OTPs
+                WHERE email = %s AND is_used = %s
+                ORDER BY created_at DESC
+                LIMIT 1
+                """,
+                (email, False)
+            )
+            result = cursor.fetchone()
+            if not result:
+                raise HTTPException(status_code=400, detail="Invalid or expired OTP")
+
+            stored_otp, expires_at, is_used = result
+            if datetime.utcnow() > expires_at:
+                raise HTTPException(status_code=400, detail="OTP has expired")
+            if stored_otp != otp:
+                raise HTTPException(status_code=400, detail="Incorrect OTP")
+            if is_used:
+                raise HTTPException(status_code=400, detail="OTP already used")
+
+            # Mark OTP as used
+            cursor.execute(
+                "UPDATE OTPs SET is_used = %s WHERE email = %s AND otp = %s",
+                (True, email, otp)
+            )
+            connection.commit()
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Failed to verify OTP: {str(e)}")
+
+    @staticmethod
+    def register_user(user_data: UserCreate):
+        """Register a new user and send OTP for email verification."""
         user = get_user(user_data.email)
         if user:
             raise HTTPException(status_code=400, detail="Email Already Exists")
 
         if len(user_data.phone_number) != 11:
             raise HTTPException(status_code=400, detail="Invalid Phone Number")
-        
+
         if not user_data.password:
             raise HTTPException(status_code=400, detail="Invalid Password")
-        
+
+        # Insert user into database
         try:
-            cursor.execute("INSERT INTO Users(full_name,email,phone_number,account_type,subscribed,hashed_password) VALUES(%s, %s, %s, %s, %s, %s);",(user_data.full_name,user_data.email,user_data.phone_number,user_data.account_type.value,user_data.subscribed,hash_password(user_data.password)))
+            cursor.execute(
+                """
+                INSERT INTO Users (full_name, email, phone_number, account_type, subscribed, hashed_password)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    user_data.full_name,
+                    user_data.email,
+                    user_data.phone_number,
+                    user_data.account_type.value,
+                    user_data.subscribed,
+                    hash_password(user_data.password)
+                )
+            )
             connection.commit()
         except Exception as e:
-            raise HTTPException(status_code=400, detail="Failed to commit to DB: "+ str(e))
+            raise HTTPException(status_code=400, detail=f"Failed to commit to DB: {str(e)}")
 
-        #get library to send otp to users to confirm their email
+        # Generate and send OTP
+        otp = UserService.generate_otp()
+        UserService.store_otp(user_data.email, otp)
+        UserService.send_otp_email(user_data.email, otp)
 
-        raise HTTPException(status_code=200, detail={"Message":"User Successfully Created"})
+        return {"message": "User successfully created. Please verify your email with the OTP sent."}
+
+    @staticmethod
+    def login_with_otp(email: str):
+        """Initiate OTP-based login by sending an OTP to the user's email."""
+        user = get_user(email)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Generate and send OTP
+        otp = UserService.generate_otp()
+        UserService.store_otp(email, otp)
+        UserService.send_otp_email(email, otp)
+
+        return {"message": "OTP sent to your email. Please verify to log in."}
 
     @staticmethod
     def reset_password(email:str, updated_password:str, confirm_password: str):

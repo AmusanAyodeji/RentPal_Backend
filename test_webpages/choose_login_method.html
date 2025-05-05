@@ -2,15 +2,15 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Choose Login Method</title>
+  <title>Choose Sign in Method</title>
 </head>
 <body>
-  <h1>Choose Login Method</h1>
+  <h1>Choose Sign in Method</h1>
 
   <p id="accountTypeMessage">You have selected: </p>
 
   <form id="loginMethodForm">
-    <button type="button" onclick="googleLogin()">Login with Google</button>
+    <button type="button" onclick="googleLogin()">Sign in with Google</button>
     <button type="button" onclick="otherLoginMethod()">Other Login Method</button>
   </form>
 
@@ -33,7 +33,7 @@
       }
 
       // Redirect to Google login with the selected account type
-      window.location.href = "http://127.0.0.1:8000/auth/login?account_type=" + accountType;
+      window.location.href = "http://127.0.0.1:8000/auth/signup?account_type=" + accountType;
     }
 
     function otherLoginMethod() {
