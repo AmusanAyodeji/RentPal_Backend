@@ -86,11 +86,6 @@ class UserService:
                 (True, email, otp)
             )
             connection.commit()
-            access_token = create_access_token(data={"sub": email})
-            return JSONResponse({
-                "access_token": access_token,
-                "token_type": "bearer"
-            })
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Failed to verify OTP: {str(e)}")
 

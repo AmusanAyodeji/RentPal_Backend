@@ -28,10 +28,12 @@ SCOPES = [
 
 def create_google_flow(current_host: str):
     redirect_uri = f"{current_host}/auth/callback"
+    print(redirect_uri)
     return Flow.from_client_secrets_file(
         "credentials.json",
-        scopes=["openid", "email", "profile"],
+        scopes=SCOPES,
         redirect_uri=redirect_uri
+        # redirect_uri = "http://127.0.0.1:8000/auth/callback"
     )
 
 @usersrouter.get("/auth/signup")
@@ -147,4 +149,8 @@ def reset_password(email:str, updated_password:str, confirm_password: str):
 @usersrouter.post("/verify-otp")
 async def verify_otp(request: OTPVerifyRequest):
     user_crud.verify_otp(request.email, request.otp)
-    return {"message": "OTP verified successfully. You are now logged in."}
+    access_token = create_access_token(data={"sub": request.email})
+    return JSONResponse({
+        "access_token": access_token,
+        "token_type": "bearer"
+    })
