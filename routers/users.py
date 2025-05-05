@@ -29,7 +29,7 @@ SCOPES = [
 def create_google_flow(current_host: str):
     redirect_uri = f"{current_host}/auth/callback"
     return Flow.from_client_secrets_file(
-        "client_secret.json",
+        "credentials.json",
         scopes=["openid", "email", "profile"],
         redirect_uri=redirect_uri
     )
