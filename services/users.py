@@ -1,7 +1,7 @@
-from database import cursor, connection
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse
-from deps import pwd_context, get_user, hash_password, create_access_token
+from deps import pwd_context, get_user, hash_password
+from database import db_pool
 from schema.user_schema import UserCreate
 import random
 import string
@@ -40,7 +40,9 @@ class UserService:
 
     @staticmethod
     def store_otp(email: str, otp: str):
-        """Store OTP in the database with a 5-minute expiration."""
+        conn = db_pool.getconn()
+        conn.autocommit = True
+        cursor = conn.cursor()
         expires_at = datetime.utcnow() + timedelta(minutes=5)
         try:
             cursor.execute(
@@ -50,13 +52,15 @@ class UserService:
                 """,
                 (email, otp, datetime.utcnow(), expires_at, False)
             )
-            connection.commit()
+            conn.commit()
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Failed to store OTP: {str(e)}")
 
     @staticmethod
     def verify_otp(email: str, otp: str):
-        """Verify the OTP provided by the user."""
+        conn = db_pool.getconn()
+        conn.autocommit = True
+        cursor = conn.cursor()
         try:
             cursor.execute(
                 """
@@ -85,13 +89,17 @@ class UserService:
                 "UPDATE OTPs SET is_used = %s WHERE email = %s AND otp = %s",
                 (True, email, otp)
             )
-            connection.commit()
+            conn.commit()
+            cursor.close()
+            db_pool.putconn(conn)
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Failed to verify OTP: {str(e)}")
 
     @staticmethod
     def register_user(user_data: UserCreate):
-        """Register a new user and send OTP for email verification."""
+        conn = db_pool.getconn()
+        conn.autocommit = True
+        cursor = conn.cursor()
         user = get_user(user_data.email)
         if user:
             raise HTTPException(status_code=400, detail="Email Already Exists")
@@ -118,7 +126,9 @@ class UserService:
                     hash_password(user_data.password)
                 )
             )
-            connection.commit()
+            conn.commit()
+            cursor.close()
+            db_pool.putconn(conn)
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Failed to commit to DB: {str(e)}")
 
@@ -131,6 +141,9 @@ class UserService:
 
     @staticmethod
     def reset_password(email:str, updated_password:str, confirm_password: str):
+        conn = db_pool.getconn()
+        conn.autocommit = True
+        cursor = conn.cursor()
         cursor.execute("SELECT * FROM Users WHERE email = %s",(email,))
         user = cursor.fetchone()
 
@@ -146,7 +159,9 @@ class UserService:
 
         try:
             cursor.execute("UPDATE Users SET hashed_password = %s WHERE email = %s",(hash_password(updated_password),email))
-            connection.commit()
+            conn.commit()
+            cursor.close()
+            db_pool.putconn(conn)
         except Exception as e:
             raise HTTPException(status_code=400, detail="Unable to change password: "+ str(e))
 

@@ -9,7 +9,7 @@ from schema.otp_schema import OTPVerifyRequest
 from deps import get_current_user
 from fastapi.security import OAuth2PasswordRequestForm
 from services.users import user_crud
-from database import cursor, connection
+from database import db_pool
 from datetime import timedelta
 from deps import create_access_token, pwd_context, ACCESS_TOKEN_EXPIRE_MINUTES
 from schema.login_schema import LoginPayload
@@ -33,7 +33,6 @@ def create_google_flow(current_host: str):
         "credentials.json",
         scopes=SCOPES,
         redirect_uri=redirect_uri
-        # redirect_uri = "http://127.0.0.1:8000/auth/callback"
     )
 
 @usersrouter.get("/auth/signup")
@@ -64,9 +63,13 @@ def google_signup_or_signin_auth_callback(request: Request):
     user_info = session.get("https://www.googleapis.com/userinfo/v2/me").json()
     people_info = session.get("https://people.googleapis.com/v1/people/me?personFields=phoneNumbers").json()
 
-
+    conn = db_pool.getconn()
+    conn.autocommit = True
+    cursor = conn.cursor()
     cursor.execute("SELECT * FROM Users WHERE email = %s",(user_info["email"],))
     result = cursor.fetchone()
+    cursor.close()
+    db_pool.putconn(conn)
 
     if not result:
         phone_numbers = people_info.get("phoneNumbers", [])
@@ -74,15 +77,25 @@ def google_signup_or_signin_auth_callback(request: Request):
         if phone_numbers:
             phone_number = phone_numbers[0].get("value")
             phone_number = phone_number[:0] + "0" + phone_number[0:]
+            conn = db_pool.getconn()
+            conn.autocommit = True
+            cursor = conn.cursor()
             cursor.execute("INSERT INTO users(full_name, email, phone_number, subscribed, account_type) VALUES(%s, %s, %s, %s, %s);",
                 (user_info["name"], user_info["email"], phone_number, True, account_type))
-            connection.commit()
+            conn.commit()
+            cursor.close()
+            db_pool.putconn(conn)
 
         if not phone_number:
             request.session['email'] = user_info["email"]
+            conn = db_pool.getconn()
+            conn.autocommit = True
+            cursor = conn.cursor()
             cursor.execute("INSERT INTO users(full_name, email, subscribed, account_type) VALUES(%s, %s, %s, %s);",
                 (user_info["name"], user_info["email"], True, account_type))
-            connection.commit()
+            conn.commit()
+            cursor.close()
+            db_pool.putconn(conn)
     
     access_token = create_access_token(data={"sub": user_info["email"]})
     return JSONResponse({
@@ -105,6 +118,9 @@ def google_signup_or_signin_auth_callback(request: Request):
 
 @usersrouter.post("/auth/token", response_model=Token)
 def login_authorize_button(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
+    conn = db_pool.getconn()
+    conn.autocommit = True
+    cursor = conn.cursor()
     cursor.execute("SELECT * FROM Users WHERE email = %s", (form_data.username,))
     db_user = cursor.fetchone()
 
@@ -115,10 +131,15 @@ def login_authorize_button(form_data: Annotated[OAuth2PasswordRequestForm, Depen
     access_token = create_access_token(
         data={"sub": form_data.username}, expires_delta=access_token_expires
     )
+    cursor.close()
+    db_pool.putconn(conn)
     return Token(access_token=access_token, token_type="bearer")
 
 @usersrouter.post("/auth/login", response_model=Token)
 def login(payload: LoginPayload):
+    conn = db_pool.getconn()
+    conn.autocommit = True
+    cursor = conn.cursor()
     cursor.execute("SELECT * FROM Users WHERE email = %s", (payload.username,))
     db_user = cursor.fetchone()
     
@@ -129,6 +150,8 @@ def login(payload: LoginPayload):
     access_token = create_access_token(
         data={"sub": payload.username}, expires_delta=access_token_expires
     )
+    cursor.close()
+    db_pool.putconn(conn)
     return Token(access_token=access_token, token_type="bearer")
 
 @usersrouter.get("/users/me")

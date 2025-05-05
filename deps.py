@@ -1,6 +1,6 @@
 import os
 import jwt
-from database import cursor
+from database import db_pool
 from datetime import datetime, timedelta, timezone
 from schema.user_schema import User
 from passlib.context import CryptContext
@@ -22,8 +22,13 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
 def get_user(username: str):
+    conn = db_pool.getconn()
+    conn.autocommit = True
+    cursor = conn.cursor()
     cursor.execute("SELECT * FROM Users WHERE email = %s",(username,))
     user = cursor.fetchone()
+    cursor.close()
+    db_pool.putconn(conn)
     if user:
         user = User(
             id = user[0],
@@ -33,6 +38,7 @@ def get_user(username: str):
             account_type = user[4],
             subscribed = user[5]
         )
+
         return user
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
