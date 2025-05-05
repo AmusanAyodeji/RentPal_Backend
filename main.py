@@ -31,23 +31,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-#---------------------------------Added to test google sign in flow-------------------------------
-from fastapi import FastAPI
-from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
-
-# Serve static files from the "static" directory
-app.mount("/test_webpages", StaticFiles(directory="test_webpages"), name="static")
-
-# You can also define a route to directly serve the HTML page, if needed
-@app.get("/test_webpages/add-phone-number.html", response_class=HTMLResponse)
-async def get_phone_number_page():
-    with open("test_webpages/add-phone-number.html") as f:
-        return HTMLResponse(content=f.read())    
-
-#--------------------------------------------------------------------------------------------------
-
-
 @app.get('/')
 def home():
     return {"message": "welcome to RentPal"}
