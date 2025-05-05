@@ -52,11 +52,8 @@ def google_login(request:Request):
 
 @usersrouter.get("/auth/callback")
 def google_signup_or_signin_auth_callback(request: Request):
-    flow = Flow.from_client_secrets_file(
-        "credentials.json",
-        scopes=SCOPES,
-        redirect_uri="http://localhost:8000/auth/callback"
-    )
+    host = str(request.base_url).strip("/")
+    flow = create_google_flow(host)
 
     account_type = request.query_params.get('state')
 
