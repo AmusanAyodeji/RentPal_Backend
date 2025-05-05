@@ -17,7 +17,8 @@ app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
 
 origins = [
     "http://localhost:3000",
-    "https://rent-pal.vercel.app/"
+    "https://rent-pal.vercel.app/",
+    "*"
 ]
 
 app.include_router(usersrouter,tags=["users"])
