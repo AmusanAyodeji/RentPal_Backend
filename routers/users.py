@@ -4,7 +4,8 @@ from fastapi.responses import RedirectResponse, JSONResponse, HTMLResponse
 from google_auth_oauthlib.flow import Flow
 from typing import Annotated
 from schema.token_schema import Token
-from schema.user_schema import User, UserCreate, AccountType, OTPVerifyRequest, LoginRequest
+from schema.user_schema import User, UserCreate, AccountType
+from schema.otp_schema import OTPVerifyRequest
 from deps import get_current_user
 from fastapi.security import OAuth2PasswordRequestForm
 from services.users import user_crud

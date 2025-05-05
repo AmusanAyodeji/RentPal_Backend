@@ -13,14 +13,12 @@ import os
 class UserService:
     @staticmethod
     def generate_otp(length=6):
-        """Generate a random OTP of specified length."""
         return ''.join(random.choices(string.digits, k=length))
 
     @staticmethod
     def send_otp_email(email: str, otp: str):
-        """Send OTP to the user's email using Gmail SMTP."""
-        sender_email = os.getenv("SMTP_EMAIL")  # e.g., your.email@gmail.com
-        sender_password = os.getenv("SMTP_PASSWORD")  # Gmail app-specific password
+        sender_email = os.getenv("SMTP_EMAIL")
+        sender_password = os.getenv("SMTP_PASSWORD")
         subject = "Your OTP for Verification"
         body = f"Your One-Time Password (OTP) is: {otp}\nIt is valid for 5 minutes."
 

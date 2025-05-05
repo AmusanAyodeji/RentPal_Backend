@@ -21,9 +21,3 @@ class UserCreate(User):
 class UserDisplay(UserCreate):
     id: str
 
-class OTPVerifyRequest(BaseModel):
-    email: str
-    otp: str
-
-class LoginRequest(BaseModel):
-    email: str
