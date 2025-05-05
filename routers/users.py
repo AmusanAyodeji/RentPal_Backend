@@ -31,18 +31,30 @@ def google_signup(account_type:AccountType):
     flow = Flow.from_client_secrets_file(
         "credentials.json",
         scopes=SCOPES,
-        redirect_uri="http://localhost:8000/auth/signupcallback"
+        redirect_uri="http://localhost:8000/auth/callback"
     )
 
     authorization_url, state = flow.authorization_url(state=account_type.value)
     return RedirectResponse(authorization_url)
 
-@usersrouter.get("/auth/signupcallback")
+@usersrouter.get("/auth/signin")
+def google_login():
+    flow = Flow.from_client_secrets_file(
+        "credentials.json",
+        scopes=SCOPES,
+        redirect_uri="http://localhost:8000/auth/callback"
+    )
+
+    authorization_url, state = flow.authorization_url()
+    return RedirectResponse(authorization_url)
+
+
+@usersrouter.get("/auth/callback")
 def google_signup_auth_callback(request: Request):
     flow = Flow.from_client_secrets_file(
         "credentials.json",
         scopes=SCOPES,
-        redirect_uri="http://localhost:8000/auth/signupcallback"
+        redirect_uri="http://localhost:8000/auth/callback"
     )
 
     account_type = request.query_params.get('state')
@@ -86,37 +98,6 @@ def google_signup_auth_callback(request: Request):
             connection.commit()
             return RedirectResponse(f"/test_webpages/add-phone-number.html?email={user_info['email']}&account_type={account_type}")
 
-@usersrouter.get("/auth/signin")
-def google_login():
-    flow = Flow.from_client_secrets_file(
-        "credentials.json",
-        scopes=SCOPES,
-        redirect_uri="http://localhost:8000/auth/signincallback"
-    )
-
-    authorization_url, state = flow.authorization_url()
-    return RedirectResponse(authorization_url)
-
-@usersrouter.get("/auth/signincallback")
-def google_login_auth_callback(request: Request):
-    flow = Flow.from_client_secrets_file(
-        "credentials.json",
-        scopes=SCOPES,
-        redirect_uri="http://localhost:8000/auth/signincallback"
-    )
-
-    flow.fetch_token(authorization_response=str(request.url))
-    credentials = flow.credentials
-
-    session = flow.authorized_session()
-    user_info = session.get("https://www.googleapis.com/userinfo/v2/me").json()
-
-    access_token = create_access_token(data={"sub": user_info["email"]})
-
-    return JSONResponse({
-        "access_token": access_token,
-        "token_type": "bearer"
-    })
 
 @usersrouter.post("/submit-phone-number")
 async def submit_phone_number(request: Request, phone_number: str = Form(...)):
