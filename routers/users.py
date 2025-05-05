@@ -71,13 +71,7 @@ def google_signup_or_signin_auth_callback(request: Request):
     cursor.execute("SELECT * FROM Users WHERE email = %s",(user_info["email"],))
     result = cursor.fetchone()
 
-    if result:
-        access_token = create_access_token(data={"sub": user_info["email"]})
-        return JSONResponse({
-            "access_token": access_token,
-            "token_type": "bearer"
-        })
-    else:
+    if not result:
         phone_numbers = people_info.get("phoneNumbers", [])
         phone_number = None
         if phone_numbers:
@@ -86,18 +80,18 @@ def google_signup_or_signin_auth_callback(request: Request):
             cursor.execute("INSERT INTO users(full_name, email, phone_number, subscribed, account_type) VALUES(%s, %s, %s, %s, %s);",
                 (user_info["name"], user_info["email"], phone_number, True, account_type))
             connection.commit()
-            access_token = create_access_token(data={"sub": user_info["email"]})
-            return JSONResponse({
-                "access_token": access_token,
-                "token_type": "bearer"
-            })
 
         if not phone_number:
             request.session['email'] = user_info["email"]
             cursor.execute("INSERT INTO users(full_name, email, subscribed, account_type) VALUES(%s, %s, %s, %s);",
                 (user_info["name"], user_info["email"], True, account_type))
             connection.commit()
-            return RedirectResponse(f"/test_webpages/add-phone-number.html?email={user_info['email']}&account_type={account_type}")
+    
+    access_token = create_access_token(data={"sub": user_info["email"]})
+    return JSONResponse({
+        "access_token": access_token,
+        "token_type": "bearer"
+    })
 
 
 @usersrouter.post("/submit-phone-number")
