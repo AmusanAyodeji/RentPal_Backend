@@ -26,28 +26,27 @@ SCOPES = [
     "https://www.googleapis.com/auth/user.phonenumbers.read"
 ]
 
+def create_google_flow(current_host: str):
+    redirect_uri = f"{current_host}/auth/callback"
+    return Flow.from_client_secrets_file(
+        "client_secret.json",
+        scopes=["openid", "email", "profile"],
+        redirect_uri=redirect_uri
+    )
 
 @usersrouter.get("/auth/signup")
-def google_signup(account_type:AccountType):
-    flow = Flow.from_client_secrets_file(
-        "credentials.json",
-        scopes=SCOPES,
-        redirect_uri="http://localhost:8000/auth/callback"
-    )
-
-    authorization_url, state = flow.authorization_url(state=account_type.value)
-    return RedirectResponse(authorization_url)
+def google_signup(account_type:AccountType, request:Request):
+    host = str(request.base_url).strip("/")
+    flow = create_google_flow(host)
+    auth_url, state = flow.authorization_url(state=account_type.value)
+    return RedirectResponse(auth_url)
 
 @usersrouter.get("/auth/signin")
-def google_login():
-    flow = Flow.from_client_secrets_file(
-        "credentials.json",
-        scopes=SCOPES,
-        redirect_uri="http://localhost:8000/auth/callback"
-    )
-
-    authorization_url, state = flow.authorization_url()
-    return RedirectResponse(authorization_url)
+def google_login(request:Request):
+    host = str(request.base_url).strip("/")
+    flow = create_google_flow(host)
+    auth_url, state = flow.authorization_url()
+    return RedirectResponse(auth_url)
 
 @usersrouter.get("/auth/callback")
 def google_signup_or_signin_auth_callback(request: Request):
