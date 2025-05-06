@@ -1,5 +1,5 @@
 import os
-from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi import APIRouter, HTTPException, Depends, Request, Query
 from fastapi.responses import RedirectResponse, JSONResponse
 from google_auth_oauthlib.flow import Flow
 from typing import Annotated
@@ -16,10 +16,9 @@ from schema.login_schema import LoginPayload
 
 usersrouter = APIRouter()
 
-# Allow HTTP for local development (NEVER in production)
+# Allow HTTP in development (never use in prod)
 # os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
-# Required Google scopes
 SCOPES = [
     "https://www.googleapis.com/auth/userinfo.profile",
     "https://www.googleapis.com/auth/userinfo.email",
@@ -27,7 +26,6 @@ SCOPES = [
     "https://www.googleapis.com/auth/user.phonenumbers.read"
 ]
 
-# Use fixed redirect_uri from environment (not dynamic)
 def create_google_flow():
     redirect_uri = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:3000/auth/callback")
     return Flow.from_client_secrets_file(
@@ -37,21 +35,21 @@ def create_google_flow():
     )
 
 @usersrouter.get("/auth/signup")
-def google_signup(account_type: AccountType):
+def google_signup(state: AccountType = Query(...)):  # changed from account_type
     flow = create_google_flow()
-    auth_url, state = flow.authorization_url(state=account_type.value)
+    auth_url, _ = flow.authorization_url(state=state.value)
     return RedirectResponse(auth_url)
 
 @usersrouter.get("/auth/signin")
 def google_login():
     flow = create_google_flow()
-    auth_url, state = flow.authorization_url()
+    auth_url, _ = flow.authorization_url()
     return RedirectResponse(auth_url)
 
 @usersrouter.get("/auth/callback")
 def google_signup_or_signin_auth_callback(request: Request):
     flow = create_google_flow()
-    account_type = request.query_params.get("state")  # Optional for signup
+    account_type = request.query_params.get("state")  # same param passed earlier
 
     try:
         flow.fetch_token(authorization_response=str(request.url))
@@ -67,7 +65,7 @@ def google_signup_or_signin_auth_callback(request: Request):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch user info: {e}")
 
-    # Check if user already exists
+    # Check if user exists
     conn = db_pool.getconn()
     conn.autocommit = True
     cursor = conn.cursor()
@@ -80,7 +78,7 @@ def google_signup_or_signin_auth_callback(request: Request):
         phone_numbers = people_info.get("phoneNumbers", [])
         phone_number = phone_numbers[0].get("value") if phone_numbers else None
         if phone_number:
-            phone_number = "0" + phone_number  # Optional: ensure format matches your needs
+            phone_number = "0" + phone_number  # ensure Nigerian-like formatting?
 
         conn = db_pool.getconn()
         conn.autocommit = True
@@ -97,7 +95,6 @@ def google_signup_or_signin_auth_callback(request: Request):
         cursor.close()
         db_pool.putconn(conn)
 
-    # Issue token
     access_token = create_access_token(data={"sub": user_info["email"]})
     return JSONResponse({
         "access_token": access_token,
