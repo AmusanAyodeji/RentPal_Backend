@@ -28,17 +28,17 @@ SCOPES = [
 
 def create_google_flow(current_host: str):
     redirect_uri = f"{current_host}/auth/callback"
-    # print(redirect_uri)
     return Flow.from_client_secrets_file(
         "credentials.json",
         scopes=SCOPES,
-        # redirect_uri=redirect_uri
-        redirect_uri = "https://rentpal-backend.onrender.com/auth/callback"
+        redirect_uri=redirect_uri
     )
 
 @usersrouter.get("/auth/signup")
 def google_signup(account_type:AccountType, request:Request):
+    print(request.base_url)
     host = str(request.base_url).strip("/")
+    print(host)
     flow = create_google_flow(host)
     auth_url, state = flow.authorization_url(state=account_type.value)
     return RedirectResponse(auth_url)
