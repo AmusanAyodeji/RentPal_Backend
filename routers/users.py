@@ -16,10 +16,10 @@ from schema.login_schema import LoginPayload
 
 usersrouter = APIRouter()
 
-# Allow HTTP for dev (NEVER use this in production)
+# Allow HTTP for local development (NEVER in production)
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
-# Consistent scopes for both auth flow and callback
+# Required Google scopes
 SCOPES = [
     "https://www.googleapis.com/auth/userinfo.profile",
     "https://www.googleapis.com/auth/userinfo.email",
@@ -27,34 +27,34 @@ SCOPES = [
     "https://www.googleapis.com/auth/user.phonenumbers.read"
 ]
 
-# Google OAuth flow setup
-def create_google_flow():
-    redirect_uri = "http://localhost:3000/auth/callback"  # Must match Google Console
+# Accept dynamic redirect_uri from caller
+def create_google_flow(redirect_uri: str):
     return Flow.from_client_secrets_file(
         "credentials.json",
         scopes=SCOPES,
         redirect_uri=redirect_uri
     )
 
-# Google sign-up flow with optional account type
 @usersrouter.get("/auth/signup")
-def google_signup(account_type: AccountType):
-    flow = create_google_flow()
+def google_signup(request: Request, account_type: AccountType):
+    redirect_uri = str(request.base_url)[:-1] + "/auth/callback"
+    flow = create_google_flow(redirect_uri)
     auth_url, state = flow.authorization_url(state=account_type.value)
     return RedirectResponse(auth_url)
 
-# Google sign-in flow
 @usersrouter.get("/auth/signin")
-def google_login():
-    flow = create_google_flow()
+def google_login(request: Request):
+    redirect_uri = str(request.base_url)[:-1] + "/auth/callback"
+    flow = create_google_flow(redirect_uri)
     auth_url, state = flow.authorization_url()
     return RedirectResponse(auth_url)
 
-# Callback handler after Google login/signup
 @usersrouter.get("/auth/callback")
 def google_signup_or_signin_auth_callback(request: Request):
-    flow = create_google_flow()
-    account_type = request.query_params.get("state")  # optional
+    # Use full request URL as the redirect_uri to match the one sent to Google
+    redirect_uri = str(request.url).split("?")[0]
+    flow = create_google_flow(redirect_uri)
+    account_type = request.query_params.get("state")  # Optional for signup
 
     try:
         flow.fetch_token(authorization_response=str(request.url))
@@ -83,7 +83,7 @@ def google_signup_or_signin_auth_callback(request: Request):
         phone_numbers = people_info.get("phoneNumbers", [])
         phone_number = phone_numbers[0].get("value") if phone_numbers else None
         if phone_number:
-            phone_number = "0" + phone_number  # Adjust if needed
+            phone_number = "0" + phone_number  # Optional: ensure format matches your needs
 
         conn = db_pool.getconn()
         conn.autocommit = True
@@ -100,14 +100,14 @@ def google_signup_or_signin_auth_callback(request: Request):
         cursor.close()
         db_pool.putconn(conn)
 
-    # Return access token
+    # Issue token
     access_token = create_access_token(data={"sub": user_info["email"]})
     return JSONResponse({
         "access_token": access_token,
         "token_type": "bearer"
     })
 
-# OAuth2 password-based login
+# Manual username/password login with form
 @usersrouter.post("/auth/token", response_model=Token)
 def login_authorize_button(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
     conn = db_pool.getconn()
@@ -125,7 +125,7 @@ def login_authorize_button(form_data: Annotated[OAuth2PasswordRequestForm, Depen
     db_pool.putconn(conn)
     return Token(access_token=access_token, token_type="bearer")
 
-# Manual login via credentials
+# Manual login
 @usersrouter.post("/auth/login", response_model=Token)
 def login(payload: LoginPayload):
     conn = db_pool.getconn()
@@ -143,22 +143,18 @@ def login(payload: LoginPayload):
     db_pool.putconn(conn)
     return Token(access_token=access_token, token_type="bearer")
 
-# Get current authenticated user
 @usersrouter.get("/users/me")
 def read_users_me(current_user: Annotated[User, Depends(get_current_user)]):
     return current_user
 
-# Registration via email/password
 @usersrouter.post("/auth/signup")
 def register_user(user_data: UserCreate):
     user_crud.register_user(user_data)
 
-# Password reset
 @usersrouter.patch("/reset_password")
 def reset_password(email: str, updated_password: str, confirm_password: str):
     user_crud.reset_password(email, updated_password, confirm_password)
 
-# OTP verification
 @usersrouter.post("/verify-otp")
 async def verify_otp(request: OTPVerifyRequest):
     user_crud.verify_otp(request.email, request.otp)
