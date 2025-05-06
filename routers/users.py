@@ -17,7 +17,7 @@ from schema.login_schema import LoginPayload
 usersrouter = APIRouter()
 
 # Allow HTTP for local development (NEVER in production)
-os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+# os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
 # Required Google scopes
 SCOPES = [
@@ -27,8 +27,9 @@ SCOPES = [
     "https://www.googleapis.com/auth/user.phonenumbers.read"
 ]
 
-# Accept dynamic redirect_uri from caller
-def create_google_flow(redirect_uri: str):
+# Use fixed redirect_uri from environment (not dynamic)
+def create_google_flow():
+    redirect_uri = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:3000/auth/callback")
     return Flow.from_client_secrets_file(
         "credentials.json",
         scopes=SCOPES,
@@ -36,24 +37,20 @@ def create_google_flow(redirect_uri: str):
     )
 
 @usersrouter.get("/auth/signup")
-def google_signup(request: Request, account_type: AccountType):
-    redirect_uri = str(request.base_url)[:-1] + "/auth/callback"
-    flow = create_google_flow(redirect_uri)
+def google_signup(account_type: AccountType):
+    flow = create_google_flow()
     auth_url, state = flow.authorization_url(state=account_type.value)
     return RedirectResponse(auth_url)
 
 @usersrouter.get("/auth/signin")
-def google_login(request: Request):
-    redirect_uri = str(request.base_url)[:-1] + "/auth/callback"
-    flow = create_google_flow(redirect_uri)
+def google_login():
+    flow = create_google_flow()
     auth_url, state = flow.authorization_url()
     return RedirectResponse(auth_url)
 
 @usersrouter.get("/auth/callback")
 def google_signup_or_signin_auth_callback(request: Request):
-    # Use full request URL as the redirect_uri to match the one sent to Google
-    redirect_uri = str(request.url).split("?")[0]
-    flow = create_google_flow(redirect_uri)
+    flow = create_google_flow()
     account_type = request.query_params.get("state")  # Optional for signup
 
     try:
@@ -107,7 +104,6 @@ def google_signup_or_signin_auth_callback(request: Request):
         "token_type": "bearer"
     })
 
-# Manual username/password login with form
 @usersrouter.post("/auth/token", response_model=Token)
 def login_authorize_button(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
     conn = db_pool.getconn()
@@ -125,7 +121,6 @@ def login_authorize_button(form_data: Annotated[OAuth2PasswordRequestForm, Depen
     db_pool.putconn(conn)
     return Token(access_token=access_token, token_type="bearer")
 
-# Manual login
 @usersrouter.post("/auth/login", response_model=Token)
 def login(payload: LoginPayload):
     conn = db_pool.getconn()
