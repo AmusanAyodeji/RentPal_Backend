@@ -21,13 +21,30 @@ class UserService:
         sender_email = os.getenv("SMTP_EMAIL")
         sender_password = os.getenv("SMTP_PASSWORD")
         subject = "Your OTP for Verification"
-        body = f"Your One-Time Password (OTP) is: {otp}\nIt is valid for 5 minutes."
 
-        msg = MIMEMultipart()
+        plain_text = f"Your One-Time Password (OTP) is: {otp}\nIt is valid for 5 minutes."
+
+        html_content = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px;">
+                <div style="max-width: 500px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                    <h2 style="color: #333;">Email Verification</h2>
+                    <p style="font-size: 16px;">Use the following OTP to verify your email address:</p>
+                    <p style="font-size: 24px; font-weight: bold; color: #007BFF;">{otp}</p>
+                    <p style="font-size: 14px; color: #666;">This code is valid for 5 minutes.</p>
+                </div>
+            </body>
+        </html>
+        """
+
+        msg = MIMEMultipart("alternative")
         msg['From'] = sender_email
         msg['To'] = email
         msg['Subject'] = subject
-        msg.attach(MIMEText(body, 'plain'))
+        msg['Reply-To'] = sender_email
+        msg.add_header('MIME-Version', '1.0')
+        msg.attach(MIMEText(plain_text, 'plain'))
+        msg.attach(MIMEText(html_content, 'html'))
 
         try:
             server = smtplib.SMTP('smtp.gmail.com', 587)
